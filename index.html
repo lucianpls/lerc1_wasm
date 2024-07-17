@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <style>
+    body {
+      font-family: Arial;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    /* #image-container {
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .slider {
+      width: 50%;
+    } */
+
+  </style>
+</head>
+
+<body>
+    <script src="lerc1dec.js"></script>
+
+    <h1>JS Lerc1 wasm</h1>
+    <h2 id="demo"></h2>
+
+    <script>
+        let Lerc = Module;
+        Lerc.onRuntimeInitialized = () => {
+
+            console.log("Started");
+            // buffer, size => json string or nullptr
+            Lerc.getwh = Lerc.cwrap('getwh', 'number', ['number', 'number']);
+            // buffer, size, ndv, outbuffer, outsize, message => true if no error
+            Lerc.lercDecode = Lerc.cwrap('decode', 'number', [
+                'number', 'number', 'number',
+                'number', 'number', 'number',
+            ]);
+
+            // get Lerc blob info as a js Object, the first 100 bytes or less
+            Lerc.getInfo = function(data) {
+              if (data.length > 100)
+                data = data.slice(0, 100)
+              let wbuf = Lerc._malloc(data.length);
+              Lerc.writeArrayToMemory(data, wbuf);
+              cresult = Lerc.getwh(wbuf, data.length);
+              response = Lerc.UTF8ToString(cresult);
+              Lerc._free(cresult);
+              Lerc._free(wbuf);
+              return JSON.parse(response)
+            }
+
+            // decode the Lerc1 blob
+            // returned .data is an array view of decoded array on the wasm heap
+            // free by calling .clean() when done
+            Lerc.wasm_decode = function(data, ndv) {
+              image = this.getInfo(data.slice(0, 100));
+              if (!image) return image;
+
+              raw = this._malloc(data.length);
+              this.writeArrayToMemory(data, raw);
+              outsize = image.width * image.height * 4; // Always float32
+              bufptr = Lerc._malloc(outsize);
+              values = new Float32Array(Lerc.HEAP8.buffer, bufptr, outsize);
+              // Get a 1024 byte message buffer, remember to free it
+              message = Lerc._malloc(1024);
+              // Now for the decode
+              decoded = Lerc.lercDecode(raw, data.length, ndv, bufptr, outsize, message);
+              if (decoded) {
+                // image.data = new Float32Array(values); // copy
+                image.data = values; // reference
+                image.bufptr = bufptr;
+                image.clean = function() {
+                  delete this.data;
+                  Lerc._free(this.bufptr);
+                }
+              } else {
+                image.error = this.UTF8ToString(message);
+                this._free(bufptr);
+                console.log(image.error);
+              };
+
+              this._free(message);
+              this._free(raw);
+              return image;
+            }
+
+            // Full decode, returns a JS owned array and cleans up the wasm heap
+            Lerc.decode = function(data, ndv) {
+              image = this.wasm_decode(data, ndv);
+              values = new Float32Array(image.data); // make a copy
+              image.clean();
+              image.data = values;
+              delete image.clean;
+              return image;
+            }
+
+            main();
+        }
+
+        // Starting point
+        async function main() {
+          try {
+            // Sample Lerc tile
+            let url = "https://services.arcgisonline.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/"
+            url += "tile/2/1/1"
+            let result = await fetch(url);
+            let data = await result.arrayBuffer();
+            data = new Uint8Array(data);
+            console.log(data.length);
+            image = Lerc.getInfo(data);
+            // If image.needs_ndv is true, Lerc.decode 
+            // will needs to use the second parameter as no data value
+            console.log(image);
+
+            if (!image) throw new Error("Can't recognize Lerc1 header");
+
+            // let then = performance.now();
+            // for (let i=0; i < 100; i++) {
+            //   if (0) {
+            //     image = Lerc.wasm_decode(data);
+            //     image.clean();
+            //   } else {
+            //     image = Lerc.decode(data); // slower by about 10%, but safer
+            //   }
+            // }
+            // let took = performance.now() - then;
+            // console.log(`decode took ${took}`)
+
+            image = Lerc.decode(data);
+
+            // Prove it
+            vmin = vmax = image.data[0]
+            for (i = 0; i < image.data.length; i++) {
+                if (vmin > image.data[i]) 
+                    vmin = image.data[i];
+                if (vmax < image.data[i])
+                    vmax = image.data[i];
+            }
+            console.log(`Min ${vmin} Max ${vmax}`);
+
+          } catch (e) {
+            console.log(e.message);
+          }
+        }
+
+
+    </script>
+</body>
+</html>
