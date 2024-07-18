@@ -11,11 +11,12 @@
       text-align: center;
     }
 
-    /* #image-container {
+    #image-container {
       margin-top: 20px;
       margin-bottom: 20px;
     }
 
+    /*
     .slider {
       width: 50%;
     } */
@@ -29,8 +30,55 @@
     <h1>JS Lerc1 wasm</h1>
     <h2 id="demo"></h2>
 
+    <div id="image-container">
+    </div>
+
+    <label for="level">Level:</label>
+    <input type="number" id="Level" name="level" value="0" min="0" max="20">
+    <label for="row">Row:</label>
+    <input type="number" id="Row" name="row" value="0" min="0" max="0">
+    <label for="row">Column:</label>
+    <input type="number" id="Column" name="column" value="0" min="0" max="0">
+
     <script>
         let Lerc = Module;
+
+        Lerc.displayZone = {
+          canvas: undefined,
+          ctx: undefined,
+          imageData: undefined
+        };
+
+        function display(image) {
+          let width = image.width;
+          let height = image.height;
+          displayZone = Lerc.displayZone;
+
+          if (!displayZone.ctx) {
+            let canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            document.getElementById('image-container').appendChild(canvas);
+            let ctx = canvas.getContext('2d');
+            displayZone.ctx = ctx;
+            let imageData = ctx.createImageData(width, height);
+            displayZone.imageData = imageData;
+          }
+
+          if (displayZone.imageData.length != width * height * 4) { // Change the size?
+
+          }
+
+          let buffer = new Uint32Array(displayZone.imageData.data.buffer, 0, width * height);
+          let ALPHA = 0xff000000;
+          let scale = 255 / (image.max - image.min);
+          for (let i = 0; i < buffer.length; i++) {
+            let v = ((image.data[i] - image.min) * scale) & 0xff;
+            buffer[i] = (v * 0x10101) | ALPHA;
+          };
+          displayZone.ctx.putImageData(displayZone.imageData, 0, 0);
+        }
+
         Lerc.onRuntimeInitialized = () => {
 
             console.log("Started");
@@ -100,15 +148,34 @@
               return image;
             }
 
-            main();
+            // function refresh(e) {
+            //   let level = document.getElementById('Level').value;
+            //   let row = document.getElementById('Row').value;
+            //   let column = document.getElementById('Column').value;
+            //   console.log(`${level}/${row}/${column}`)
+            // }
+
+            document.getElementById("Level").addEventListener("input", refresh);
+            document.getElementById("Row").addEventListener("input", refresh);
+            document.getElementById("Column").addEventListener("input", refresh);
+            refresh();
         }
 
-        // Starting point
-        async function main() {
+        async function refresh() {
           try {
             // Sample Lerc tile
             let url = "https://services.arcgisonline.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/"
-            url += "tile/2/1/1"
+            let rowInput = document.getElementById('Row');
+            let columnInput = document.getElementById('Column');
+            let level = document.getElementById('Level').value;
+            let maxval = 2 ** level - 1;
+            if (rowInput.max != maxval)
+              rowInput.max = maxval;
+            if (columnInput.max != maxval)
+              columnInput.max = maxval;
+            let row = rowInput.value;
+            let column = columnInput.value;
+            url += "tile/" + level + "/" + row + "/" + column
             let result = await fetch(url);
             let data = await result.arrayBuffer();
             data = new Uint8Array(data);
@@ -119,19 +186,6 @@
             console.log(image);
 
             if (!image) throw new Error("Can't recognize Lerc1 header");
-
-            // let then = performance.now();
-            // for (let i=0; i < 100; i++) {
-            //   if (0) {
-            //     image = Lerc.wasm_decode(data);
-            //     image.clean();
-            //   } else {
-            //     image = Lerc.decode(data); // slower by about 10%, but safer
-            //   }
-            // }
-            // let took = performance.now() - then;
-            // console.log(`decode took ${took}`)
-
             image = Lerc.decode(data);
 
             // Prove it
@@ -143,6 +197,9 @@
                     vmax = image.data[i];
             }
             console.log(`Min ${vmin} Max ${vmax}`);
+            image.min = vmin;
+            image.max = vmax;
+            display(image);
 
           } catch (e) {
             console.log(e.message);
