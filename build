@@ -7,4 +7,4 @@ emcc -O3 -c lerc1api.cpp
 
 # Build a lerc1.wasm library, with just the lerc1api exported
 EXPORTS=_malloc,_free
-emcc -O3 -o lerc1dec.js lerc1api.o lerc1Image.o -s NO_EXIT_RUNTIME=1 -sEXPORTED_FUNCTIONS=$EXPORTS --no-entry -sEXPORTED_RUNTIME_METHODS=[cwrap,getValue,writeArrayToMemory,UTF8ToString]
+emcc -O3 -o lerc1dec.js lerc1api.o lerc1Image.o -s NO_EXIT_RUNTIME=1 -sEXPORTED_FUNCTIONS=$EXPORTS --no-entry -sEXPORTED_RUNTIME_METHODS=[cwrap,writeArrayToMemory,UTF8ToString]
