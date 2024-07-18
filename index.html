@@ -56,6 +56,7 @@
 
           if (!displayZone.ctx) {
             let canvas = document.createElement('canvas');
+            displayZone.canvas = canvas;
             canvas.width = width;
             canvas.height = height;
             document.getElementById('image-container').appendChild(canvas);
@@ -191,10 +192,10 @@
             // Prove it
             vmin = vmax = image.data[0]
             for (i = 0; i < image.data.length; i++) {
-                if (vmin > image.data[i]) 
-                    vmin = image.data[i];
-                if (vmax < image.data[i])
-                    vmax = image.data[i];
+              if (vmin > image.data[i])
+                vmin = image.data[i];
+              if (vmax < image.data[i])
+                vmax = image.data[i];
             }
             console.log(`Min ${vmin} Max ${vmax}`);
             image.min = vmin;
