@@ -17,7 +17,10 @@ var LercLayer = L.GridLayer.extend({
     xhr.onreadystatechange = function (evt) {
       if (evt.target.readyState == 4 && evt.target.status == 200) {
         tile.decodedPixels = Lerc.decode(new Uint8Array(xhr.response));
-        this.draw(tile);
+        if (tile.decodedPixels)
+          this.draw(tile);
+        else
+          error = "Unrecognized data";
         done(error, tile);
       }
     }.bind(this);

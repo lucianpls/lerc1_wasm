@@ -42,6 +42,8 @@
           let workBuffer = this._malloc(data.length);
           this.writeArrayToMemory(data, workBuffer);
           cresult = this.getwh(workBuffer, data.length);
+          if (cresult == 0) // Error, not valid lerc1
+            return null;
           response = this.UTF8ToString(cresult);
           this._free(cresult);
           this._free(workBuffer);
@@ -83,7 +85,14 @@
         // Wrapper for wasm_decode, returns array copy and cleans up wasm heap
         Lerc.decode = function(data, ndv) {
           image = this.wasm_decode(data, ndv);
-          if (image.error) return image;
+          if (!image) { // Not recognized?
+            console.log("Invalid lerc1");
+            return null;
+          }
+          if (image.error) {
+            console.log(image.error);
+            return image;
+          }
           values = new Float32Array(image.data); // copy
           image.clean(); // Free heap array
           image.data = values;

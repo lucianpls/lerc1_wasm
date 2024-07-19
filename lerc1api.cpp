@@ -14,12 +14,31 @@ static int getwh(void *data, size_t sz, int *w, int*h, int *has_ndv, double *pre
     // unaligned reads, assumes little endian
     // safe because the test above means sz >= 67
     memcpy(precision, d + 26, 8);
-    memcpy(has_ndv, d+34, 4);
+    // Next two integers have to be zero
+    memcpy(has_ndv, d + 34, 4);
+    if (*has_ndv)
+        return false;
+    memcpy(has_ndv, d + 38, 4);
+    if (*has_ndv)
+        return false;
+    // ndv mask size. If >0, ndv is needed
+    memcpy(has_ndv, d + 42, 4);
+    if (0 == *has_ndv) {
+        // If no mask, it could still be all invalid
+        float mask_val;
+        memcpy(&mask_val, d + 46, 4);
+        // Only 0.0 and 1.0 are acceptable
+        if (mask_val != 0.0 && mask_val != 1.0)
+            return false;
+        // return -1 if image is all ndv
+        *has_ndv = -(mask_val == 0.0);
+    }
+
     return Lerc1Image::getwh(d, sz, *w, *h);
 }
 
 // returns UTF8 json string that needs to be freed by caller
-void *getwh(void *data, size_t sz) {
+char *getwh(void *data, size_t sz) {
     int w, h, has_mask;
     double precision;
     if (!getwh(data, sz, &w, &h, &has_mask, &precision))
@@ -28,8 +47,8 @@ void *getwh(void *data, size_t sz) {
     response["width"] = w;
     response["height"] = h;
     response["precision"] = precision;
-    response["needs_ndv"] = (0 != has_mask);
-    auto s = response.dump(4); // string, on stack
+    response["needs_ndv"] = has_mask;
+    auto s = response.dump(); // string, on stack
     // Make a heap copy
     char *buffer = (char *) malloc(s.size() + 1);
     strncpy(buffer, s.c_str(), s.size() + 1);
@@ -48,6 +67,14 @@ int decode(void *data, size_t sz, float ndv, float *values, size_t outsz, char *
         strcpy(message, "Invalid output buffer");
         return false; // Not matching expected output
     }
+
+    // // Skip decoding if all data is NDV
+    // if (has_ndv < 0) {
+    //     for (int i = 0; i < w * h; i++)
+    //         values[i] = ndv;
+    //     return true;
+    // }
+
     Lerc1Image zImg;
     auto ptr = (Byte *)data;
     auto size(sz);
