@@ -7,7 +7,8 @@ var LercLayer = L.GridLayer.extend({
 
     var xhr = new XMLHttpRequest();
     xhr.responseType = "arraybuffer";
-    var url = 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/' + 'Terrain3D/ImageServer/tile/' + coords.z + '/' + coords.y + '/' + coords.x;
+    // var url = 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/' + 'Terrain3D/ImageServer/tile/' + coords.z + '/' + coords.y + '/' + coords.x;
+    var url = 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/' + 'TopoBathy3D/ImageServer/tile/' + coords.z + '/' + coords.y + '/' + coords.x;
 
     xhr.open("Get", url, true);
     xhr.send();

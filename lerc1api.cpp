@@ -1,8 +1,7 @@
 #include "lerc1api.h"
 #include "Lerc1Image.h"
 #include "json.hpp"
-#include <string.h>
-#include <inttypes.h>
+#include <cstdint>
 
 USING_NAMESPACE_LERC1
 using namespace nlohmann;

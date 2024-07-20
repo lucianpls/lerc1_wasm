@@ -22,7 +22,7 @@
     <script src="https://unpkg.com/lerc@1.0.1/LercDecode.js"></script>
 
     <!--This is the wasm lerc1 decoder-->
-    <script src="./lerc1dec.js"></script>
+    <script src="lerc1dec.js"></script>
 
     <script>
       var Lerc = Module;
@@ -34,6 +34,10 @@
           'number', 'number', 'number',
           'number', 'number', 'number'
         ]);
+
+        // float *data, size_t sz(257*257), min, max, int *dst -> failed
+        Lerc.topixel8 = this.cwrap('topixel8', 'number',
+          ['number', 'number', 'number', 'number', 'number']);
 
         // get the Lerc blob info -> object
         Lerc.getInfo = function (data) {
@@ -52,7 +56,10 @@
 
         Lerc.wasm_decode = function(data, ndv) {
           image = this.getInfo(data);
-          if (!image) return null;
+          if (!image) {
+            console.log("Invalid lerc1 data");
+            return null;
+          }
 
           raw = this._malloc(data.length);
           this.writeArrayToMemory(data, raw);
@@ -79,20 +86,14 @@
 
           this._free(message);
           this._free(raw);
+          if (image.error)
+            console.log(image.error);
           return image;
         }
 
         // Wrapper for wasm_decode, returns array copy and cleans up wasm heap
         Lerc.decode = function(data, ndv) {
           image = this.wasm_decode(data, ndv);
-          if (!image) { // Not recognized?
-            console.log("Invalid lerc1");
-            return null;
-          }
-          if (image.error) {
-            console.log(image.error);
-            return image;
-          }
           values = new Float32Array(image.data); // copy
           image.clean(); // Free heap array
           image.data = values;
@@ -139,16 +140,9 @@
   <div id="map"></div>
   <div id="info-pane" class="leaflet-bar">
     <div id="slider"></div>
-    <br>
-    <label id="min">
-    0 meters
-    </label><br>
-    <label id="max">
-    4000 meters
-    </label>
-
+    <br><label id="min">0 meters</label>
+    <br><label id="max">4000 meters</label>
     <hr>
-
     <div id="pixel-value">Esri Tiled Elevation Service</div>
   </div>
 
@@ -159,7 +153,7 @@
       start: [0, 4000],
       step: 100,
       connect: true,
-      range: { 'min': -100, 'max': 8000  }
+      range: { 'min': -8000, 'max': 8000  }
     });
 
     // When the slider value changes, update the input and span
@@ -167,15 +161,15 @@
       document.getElementById('min').innerHTML = parseInt(values[0], 10) + ' meters';
       document.getElementById('max').innerHTML = parseInt(values[1], 10) + ' meters';
 
-      // redraw the tiles without refetching the from the server
+      // redraw the tiles without fetching the from the server
       for (var key in lercElevation._tiles) {
         lercElevation.draw(lercElevation._tiles[key].el);
       }
     });
 
-    var southWest = L.latLng(-90, -179),
-    northEast = L.latLng(90, 179),
-    worldBounds = L.latLngBounds(southWest, northEast);
+    let southWest = L.latLng(-90, -179);
+    let northEast = L.latLng(90, 179);
+    let worldBounds = L.latLngBounds(southWest, northEast);
 
     // set up the map
     var map = L.map('map', {
@@ -201,8 +195,9 @@
       // Read the data value from the block if it exists
       if (block) {
         var pointInTile = layerPoint.subtract(tilePoint.multiplyBy(256));
-        document.getElementById('pixel-value').innerHTML = "current elevation: " +
-                 Math.round(block.data[pointInTile.y * block.width + pointInTile.x]) + " meters";
+        document.getElementById('pixel-value').innerHTML = "current elevation: "
+                 + Math.round(block.data[pointInTile.y * block.width + pointInTile.x]) 
+                 + " meters";
       } else {
         document.getElementById('pixel-value').innerHTML = "Elevation: undefined";
       }
