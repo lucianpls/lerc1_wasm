@@ -33,22 +33,45 @@ var LercLayer = L.GridLayer.extend({
     
     let width = tile.decodedPixels.width - 1;
     let height = tile.decodedPixels.height - 1;
-    let min = slider.noUiSlider.get()[0];
-    let max = slider.noUiSlider.get()[1];
+    let min = +slider.noUiSlider.get()[0];
+    let max = +slider.noUiSlider.get()[1];
     let values = tile.decodedPixels.data;
+
+    let ptrVAL = Lerc._malloc(values.buffer.byteLength);
+    let ptrRGBA = Lerc._malloc(width * height * 4);
+
+    // Copy the data to wasm
+    // writeArray only works with 8bit arrays
+    // Lerc.writeArrayToMemory(new Uint8Array(values.buffer, 0, values.buffer.byteLength), ptrVAL);
+    // This is direct, the HEAP has multiple views as different types, the offsets have to be adjusted
+    Lerc.HEAPF32.set(values, ptrVAL / 4);
+
+    // Call wasm
+    let retval = Lerc.topixel8(ptrVAL, values.buffer.byteLength, min, max, ptrRGBA);
+    if (0 == retval) {
+      console.log("Error converting");
+      // Free the buffers for now
+      Lerc._free(ptrVAL);
+      Lerc._free(ptrRGBA);
+      return; // ??
+    }
+
+    // Done with the input copy
+    Lerc._free(ptrVAL);
+
+    // display the RGBA image
     let ctx = tile.getContext('2d');
     let imageData = ctx.createImageData(width, height);
-    let pixels = new Uint32Array(imageData.data.buffer, 0, imageData.data.length / 4); // view
-    let f = 255 / (max - min);
-    let ALPHA = 0xff000000;
-    for (let i = 0; i < width * height; i++) {
-      // Skip the last pixel in each input line
-      let j = i + Math.floor(i / width);
-      // Clipped to min-max
-      let pv = f * (values[j] - min);
-      pv = Math.min(255, Math.max(0, pv)) & 0xff;
-      pixels[i] = (pv * 0x10101) | ALPHA;
-    }
+
+    // Copy the RGBA pixels from wasm to imageData.data
+    // let dst = new Uint32Array(imageData.data.buffer, 0, imageData.data.length / 4); // view
+    // let src = new Uint32Array(Lerc.HEAP8.buffer, ptrRGBA, imageData.data.length / 4); // view
+    // dst.set(src); // copy data
+
+    // This is simpler
+    imageData.data.set(new Uint8Array(Lerc.HEAPU8.buffer, ptrRGBA, imageData.data.length));
+
     ctx.putImageData(imageData, 0, 0);
+    Lerc._free(ptrRGBA);
   }
 })

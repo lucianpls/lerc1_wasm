@@ -1,10 +1,11 @@
 rm lerc1dec.* *.o
 emcc -O3 -c lerc1Image.cpp
 emcc -O3 -c lerc1api.cpp
+emcc -O3 -c rasterfunk.cpp
 
 # Build the test app
 # emcc -O3 -o lercapp.html app.cpp lerc1api.o lerc1Image.o --preload-file 0 -sUSE_SDL=2
 
 # Build a lerc1.wasm library, with just the lerc1api exported
 EXPORTS=_malloc,_free
-emcc -O3 -o lerc1dec.js lerc1api.o lerc1Image.o -s NO_EXIT_RUNTIME=1 -sEXPORTED_FUNCTIONS=$EXPORTS --no-entry -sEXPORTED_RUNTIME_METHODS=[cwrap,writeArrayToMemory,UTF8ToString]
+emcc -O3 -o lerc1dec.js lerc1api.o lerc1Image.o rasterfunk.o -sNO_EXIT_RUNTIME=1 -sEXPORTED_FUNCTIONS=$EXPORTS --no-entry -sEXPORTED_RUNTIME_METHODS=[cwrap,writeArrayToMemory,UTF8ToString]

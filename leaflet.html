@@ -35,7 +35,7 @@
           'number', 'number', 'number'
         ]);
 
-        // float *data, size_t sz(257*257), min, max, int *dst -> failed
+        // float *src, size_t sz(257*257*4), min, max, int *dst -> failed
         Lerc.topixel8 = this.cwrap('topixel8', 'number',
           ['number', 'number', 'number', 'number', 'number']);
 
@@ -45,17 +45,17 @@
             data = data.slice(0, 100)
           let workBuffer = this._malloc(data.length);
           this.writeArrayToMemory(data, workBuffer);
-          cresult = this.getwh(workBuffer, data.length);
+          let cresult = this.getwh(workBuffer, data.length);
           if (cresult == 0) // Error, not valid lerc1
             return null;
-          response = this.UTF8ToString(cresult);
+          let response = this.UTF8ToString(cresult);
           this._free(cresult);
           this._free(workBuffer);
           return JSON.parse(response)
         };
 
         Lerc.wasm_decode = function(data, ndv) {
-          image = this.getInfo(data);
+          let image = this.getInfo(data);
           if (!image) {
             console.log("Invalid lerc1 data");
             return null;
@@ -65,22 +65,20 @@
           this.writeArrayToMemory(data, raw);
           outsize = image.width * image.height * 4; // Always float32
           bufptr = this._malloc(outsize);
-          // A view
-          values = new Float32Array(this.HEAP8.buffer, bufptr, outsize);
           message = this._malloc(1024);
           decoded = this.lercDecode(raw, data.length, ndv, bufptr, outsize, message);
           if (decoded) {
-            // image.data = new Float32Array(values); // copy
-            image.data = values; // reference
+            // A view, remember to call clean when done with it
+            image.data = new Float32Array(this.HEAP8.buffer, bufptr, outsize / 4);
             image.bufptr = bufptr;
             image.clean = function() {
               delete this.data;
               Lerc._free(bufptr);
+              delete image.bufptr;
             }
           } else {
             image.error = this.UTF8ToString(message);
             this._free(bufptr);
-            delete image.bufptr;
             console.log(image.error);
           };
 
@@ -96,7 +94,7 @@
           image = this.wasm_decode(data, ndv);
           values = new Float32Array(image.data); // copy
           image.clean(); // Free heap array
-          image.data = values;
+          image.data = values; // replace it with copy
           delete image.clean;
           return image;
         }
