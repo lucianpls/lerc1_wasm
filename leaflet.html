@@ -35,8 +35,12 @@
           'number', 'number', 'number'
         ]);
 
-        // float *src, size_t sz(257*257*4), min, max, int *dst -> failed
+        // float *src, size_t sz(257*257*4), min, max, int *dst -> success
         Lerc.topixel8 = this.cwrap('topixel8', 'number',
+          ['number', 'number', 'number', 'number', 'number']);
+
+        // float *src, size_t sz(257*257*4), pixel size, sun angle, int *dst -> success
+        Lerc.hillshade = this.cwrap('hillshade', 'number',
           ['number', 'number', 'number', 'number', 'number']);
 
         // get the Lerc blob info -> object
@@ -103,7 +107,7 @@
     </script>
 
     <!-- load our plugin -->
-    <script src="./LercLayer.js"></script>
+    <script src="LercLayer.js"></script>
 
     <style>
       body {
@@ -137,7 +141,10 @@
 
   <div id="map"></div>
   <div id="info-pane" class="leaflet-bar">
-    <div id="slider"></div>
+    <div id="sungle">
+      <input type="range" min="45" max="135" value="45" class="slider" id="sunAngle">
+    </div>
+      <div id="slider"></div>
     <br><label id="min">0 meters</label>
     <br><label id="max">4000 meters</label>
     <hr>
@@ -165,6 +172,14 @@
       }
     });
 
+    let sungle = document.getElementById('sunAngle');
+    sungle.oninput = function() {
+      lercElevation.sunAngle = +this.value;
+      for (var key in lercElevation._tiles) {
+        lercElevation.draw(lercElevation._tiles[key].el);
+      }
+    };
+
     let southWest = L.latLng(-90, -179);
     let northEast = L.latLng(90, 179);
     let worldBounds = L.latLngBounds(southWest, northEast);
@@ -179,7 +194,7 @@
     var lercElevation = new LercLayer({
       noWrap: true,
       attribution: 'USGS, <a href="https://github.com/Esri/lerc">LERC</a>',
-      tileSize: 256
+      tileSize: 256,
     });
 
     map.on('mousemove', function (e) {

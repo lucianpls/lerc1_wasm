@@ -4,6 +4,7 @@ var LercLayer = L.GridLayer.extend({
     var tile = L.DomUtil.create('canvas', 'leaflet-tile');
     tile.width = this.options.tileSize;
     tile.height = this.options.tileSize;
+    tile.zoom = coords.z;
 
     var xhr = new XMLHttpRequest();
     xhr.responseType = "arraybuffer";
@@ -48,6 +49,11 @@ var LercLayer = L.GridLayer.extend({
 
     // Call wasm
     let retval = Lerc.topixel8(ptrVAL, values.buffer.byteLength, min, max, ptrRGBA);
+    // Hillshade needs to know pixel size
+    let pixel_size = 40_000_000 * (2 ** (-8 -tile.zoom));
+    let sun_angle = +this.sunAngle / 180 * Math.PI || Math.PI / 4;
+    retval = Lerc.hillshade(ptrVAL, values.buffer.byteLength, pixel_size, sun_angle, ptrRGBA);
+
     if (0 == retval) {
       console.log("Error converting");
       // Free the buffers for now
@@ -64,12 +70,11 @@ var LercLayer = L.GridLayer.extend({
     let imageData = ctx.createImageData(width, height);
 
     // Copy the RGBA pixels from wasm to imageData.data
-    // let dst = new Uint32Array(imageData.data.buffer, 0, imageData.data.length / 4); // view
-    // let src = new Uint32Array(Lerc.HEAP8.buffer, ptrRGBA, imageData.data.length / 4); // view
-    // dst.set(src); // copy data
+    new Uint32Array(imageData.data.buffer).set(
+      new Uint32Array(Lerc.HEAP8.buffer, ptrRGBA, imageData.data.length / 4)); // view
 
-    // This is simpler
-    imageData.data.set(new Uint8Array(Lerc.HEAPU8.buffer, ptrRGBA, imageData.data.length));
+    // This looks simpler, although it might trigger the clamping
+    // imageData.data.set(new Uint8Array(Lerc.HEAPU8.buffer, ptrRGBA, imageData.data.length));
 
     ctx.putImageData(imageData, 0, 0);
     Lerc._free(ptrRGBA);
