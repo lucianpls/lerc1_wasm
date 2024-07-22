@@ -1,6 +1,8 @@
 # lerc1_wasm
 Lerc1 decoder in wasm
 
+Check out the [live demo](https://lucianpls.github.io/lerc1_wasm) and play with the sliders!
+
 ## Includes:
 * [Lerc1](https://github.com/lucianpls/libicd/tree/main/src/lerc1)
 * [JSON for C++](https://github.com/nlohmann/json)
