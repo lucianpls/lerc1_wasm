@@ -15,6 +15,8 @@ extern "C" {
     int topixel8(float *, size_t, double, double, uint32_t *);
     EMSCRIPTEN_KEEPALIVE
     int hillshade(float *, size_t, double pixel_size, double sun_angle, uint32_t *);
+    EMSCRIPTEN_KEEPALIVE
+    int applypalette(uint32_t *, uint32_t *, size_t);
 };
 
 // saturation linear strech from minval to maxval
@@ -59,21 +61,39 @@ int hillshade(float *data, size_t sz, double pixel_size, double sun_angle, uint3
     {
         for (int x = 0; x < TILESIZE; x++)
         {
-            double rightp = data[(y + 1) * DATATILESIZE + x + 1];
-            double leftp = data[y * DATATILESIZE + x];
+            double leftp = data[(y + 1) * DATATILESIZE + x + 1];
+            double rightp = data[y * DATATILESIZE + x];
             double slope = (rightp - leftp) / 1.41 / pixel_size;
             double normal_angle = std::asin(slope) - sun_angle + M_PI_2;
-            double factor = std::cos(normal_angle);
-            if (factor < 0) factor = 0;
-            // factor *= factor * factor;
+            double factor = abs(std::cos(normal_angle)); // 0 to 1
+            factor *= factor; // square
 
-            uint32_t val = pixels[TILESIZE * y + x] & 0xff; // grayscale byte
-            val = 64 + val * 3 / 4;
+            // If the input is grayscale:
+            // uint32_t val = pixels[TILESIZE * y + x] & 0xff; // grayscale byte
+            // val = 64 + val * 3 / 4; // Keep a baseline brightness of 64
+            // val = uint32_t(val * factor);
+            // pixels[TILESIZE * y + x] = (val * 0x10101) | ALPHA;
 
-            val = uint32_t(val * factor);
+            uint32_t red = pixels[TILESIZE * y + x] & 0xff;
+            uint32_t green = (pixels[TILESIZE * y + x] >> 8) & 0xff;
+            uint32_t blue = (pixels[TILESIZE * y + x] >> 16) & 0xff;
+            uint32_t alpha = (pixels[TILESIZE * y + x] >> 24) & 0xff;
+            red = (64 + red * 3 / 4) * factor;
+            green = (64 + green * 3 / 4) * factor;
+            blue = (64 + blue * 3 / 4) * factor;
+            alpha = 255;
 
-            pixels[TILESIZE * y + x] = (val * 0x10101) | ALPHA;
+            pixels[TILESIZE * y + x] = (alpha << 24) | (blue << 16) | (green << 8) | red;
         }
     }
     return 1;
+}
+
+// Apply the pallete to the lower byte of the pixels.
+// Assumes palette has 256 entries
+int applypalette(uint32_t *palette, uint32_t * pixel, size_t sz)
+{
+    for (int i=0; i < sz; i++)
+        pixel[i] = palette[pixel[i] & 0xff];
+    return int(sz);
 }

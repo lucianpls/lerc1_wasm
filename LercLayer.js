@@ -47,9 +47,26 @@ var LercLayer = L.GridLayer.extend({
     // This is direct, the HEAP has multiple views as different types, the offsets have to be adjusted
     Lerc.HEAPF32.set(values, ptrVAL / 4);
 
-    // Call wasm
+    // Call wasm to convert it to streched RGBAt
     let retval = Lerc.topixel8(ptrVAL, values.buffer.byteLength, min, max, ptrRGBA);
+    if (0 == retval) {
+      console.log("Error converting");
+      // Free the buffers for now
+      Lerc._free(ptrVAL);
+      Lerc._free(ptrRGBA);
+      return; // ??
+    }
+
+    // Apply a palette if defined
+    if (this.palette) {
+      let ppal = Lerc._malloc(256 * 4);
+      Lerc.HEAPU32.set(this.palette, ppal / 4);
+      retval = Lerc.applypalette(ppal, ptrRGBA, width * height);
+      Lerc._free(ppal);
+    }
+
     // Hillshade needs to know pixel size
+    // Comment out these three lines to skip hillshade
     let pixel_size = 40_000_000 * (2 ** (-8 -tile.zoom));
     let sun_angle = +this.sunAngle / 180 * Math.PI || Math.PI / 4;
     retval = Lerc.hillshade(ptrVAL, values.buffer.byteLength, pixel_size, sun_angle, ptrRGBA);
@@ -78,5 +95,37 @@ var LercLayer = L.GridLayer.extend({
 
     ctx.putImageData(imageData, 0, 0);
     Lerc._free(ptrRGBA);
+  },
+
+  // Build a palette by linear interpolation beween points
+  buildPalette : function(points)
+  {
+    let palette = new Uint32Array(256);
+
+    let j = -1;
+    let slope = 0;
+    for (let i = 0; i < 256; i++) {
+      if (i == 0 || points.index[j + 1] < i) {
+        j++;
+        let f = 1 / (points.index[j + 1] - points.index[j]);
+        slope = {
+          red : f * ((points.values[j+1] & 0xff) - (points.values[j] & 0xff)),
+          green : f * (((points.values[j+1] >> 8) & 0xff) - ((points.values[j] >> 8) & 0xff)),
+          blue : f *(((points.values[j+1] >> 16) & 0xff) - ((points.values[j] >> 16) & 0xff)),
+          alpha : f * (((points.values[j+1] >> 24) & 0xff) - ((points.values[j] >> 24) & 0xff)),
+        }
+      }
+
+      // i is between j and j+1
+      let l = i - points.index[j];
+      let v = points.values[j];
+      red = 0xff & ((v & 0xff) + l * slope.red);
+      green = 0xff & (((v >> 8) & 0xff) + l * slope.green);
+      blue = 0xff & (((v >> 16) & 0xff) + l * slope.blue);
+      alpha = 0xff & (((v >> 24) & 0xff) + l * slope.alpha);
+      palette[i] = (alpha << 24) | (blue << 16) | (green << 8) | red;
+    };
+    return palette;
   }
+  
 })
