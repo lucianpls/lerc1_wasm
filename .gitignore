@@ -1,5 +1,4 @@
 *.o
-*.wasm
-lerc1dec.*
+/lerc1dec.*
 
 .vscode
