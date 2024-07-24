@@ -67,9 +67,9 @@ int hillshade(float *data, size_t sz, double pixel_size, double sun_angle, uint3
             double slope = (rightp - leftp) / 1.41 / pixel_size;
             double normal_angle = std::asin(slope) - sun_angle + M_PI_2;
             double factor = abs(std::cos(normal_angle)); // 0 to 1
-            // negative power decrease the effect, positive increase it
-            // -2 is a good value for a subtle effect
-            factor = sqrt(factor);
+            // power <1 decrease the effect, >1 increase the effect
+            // factor = sqrt(factor);
+            factor = pow(factor, 0.75);
 
             uint32_t val = pixels[TILESIZE * y + x];
             uint32_t red = val & 0xff;
