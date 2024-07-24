@@ -55,7 +55,7 @@ int hillshade(float *data, size_t sz, double pixel_size, double sun_angle, uint3
 
     constexpr int TILESIZE(256);
     constexpr int DATATILESIZE(257);
-    constexpr uint32_t ALPHA(0xff000000);
+    constexpr uint32_t OPAQUE(0xff000000);
     constexpr auto base(32.0); // baseline brightness
     constexpr auto rescale((256 - base) / 256); // brightness rescale factor
     for (int y = 0; y < TILESIZE; y++)
@@ -75,12 +75,13 @@ int hillshade(float *data, size_t sz, double pixel_size, double sun_angle, uint3
             uint32_t red = val & 0xff;
             uint32_t green = (val >> 8) & 0xff;
             uint32_t blue = (val >> 16) & 0xff;
-            uint32_t alpha = (val >> 24) & 0xff;
             red = (base + rescale * red) * factor;
             green = (base + rescale * green) * factor;
             blue = (base + rescale * blue) * factor;
+            // alpha is unaffected by hillshade
+            uint32_t alpha = val & OPAQUE;
 
-            pixels[TILESIZE * y + x] = ALPHA | (blue << 16) | (green << 8) | red;
+            pixels[TILESIZE * y + x] = alpha | (blue << 16) | (green << 8) | red;
         }
     }
     return 1;
