@@ -109,9 +109,9 @@ var LercLayer = L.GridLayer.extend({
         j++;
         let f = 1 / (points.index[j + 1] - points.index[j]);
         slope = {
-          red : f * ((points.values[j+1] & 0xff) - (points.values[j] & 0xff)),
-          green : f * (((points.values[j+1] >> 8) & 0xff) - ((points.values[j] >> 8) & 0xff)),
-          blue : f *(((points.values[j+1] >> 16) & 0xff) - ((points.values[j] >> 16) & 0xff)),
+          red :   f * ((points.values[j+1] & 0xff)         - (points.values[j] & 0xff)),
+          green : f * (((points.values[j+1] >>  8) & 0xff) - ((points.values[j] >>  8) & 0xff)),
+          blue :  f * (((points.values[j+1] >> 16) & 0xff) - ((points.values[j] >> 16) & 0xff)),
           alpha : f * (((points.values[j+1] >> 24) & 0xff) - ((points.values[j] >> 24) & 0xff)),
         }
       }
@@ -119,9 +119,9 @@ var LercLayer = L.GridLayer.extend({
       // i is between j and j+1
       let l = i - points.index[j];
       let v = points.values[j];
-      red = 0xff & ((v & 0xff) + l * slope.red);
-      green = 0xff & (((v >> 8) & 0xff) + l * slope.green);
-      blue = 0xff & (((v >> 16) & 0xff) + l * slope.blue);
+      red   = 0xff & ((v & 0xff) + l * slope.red);
+      green = 0xff & (((v >>  8) & 0xff) + l * slope.green);
+      blue  = 0xff & (((v >> 16) & 0xff) + l * slope.blue);
       alpha = 0xff & (((v >> 24) & 0xff) + l * slope.alpha);
       palette[i] = (alpha << 24) | (blue << 16) | (green << 8) | red;
     };

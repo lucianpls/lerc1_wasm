@@ -108,6 +108,10 @@
           delete image.clean;
           return image;
         }
+
+        L.esri.Geocoding.geosearch().addTo(map);
+        lercElevation.addTo(map);
+
       }
 
     </script>
@@ -210,7 +214,8 @@
       var tilePoint = layerPoint.divideBy(256).floor();
       tilePoint.z = map.getZoom();
       // the tile data block
-      var block = lercElevation._tiles[tilePoint.x + ':' + tilePoint.y + ':' + tilePoint.z].el.decodedPixels;
+      var block = lercElevation._tiles[tilePoint.x + ':' + 
+        tilePoint.y + ':' + tilePoint.z].el.decodedPixels;
 
       // Read the data value from the block if it exists
       if (block) {
@@ -223,15 +228,11 @@
       }
     });
 
-    lercElevation.palette = lercElevation.buildPalette(
-      {
-        index: [0, 64, 128, 192, 255],
-        values: [0xFFFF0000, 0xff404040, 0xff20ff20, 0xff4040c0, 0xffffffff],
-      }
-    );
+    lercElevation.palette = lercElevation.buildPalette({
+      index: [0, 64, 128, 192, 255],
+      values: [0xFFFF0000, 0xff404040, 0xff40f040, 0xff4040c0, 0xffffffff],
+    });
 
-    L.esri.Geocoding.geosearch().addTo(map);
-    lercElevation.addTo(map);
 
   </script>
   </body>
